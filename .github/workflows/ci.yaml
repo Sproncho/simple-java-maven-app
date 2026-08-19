@@ -2,7 +2,7 @@ name: CI
 run-name: running job for ${{vars.VERSION}}
 on:
   pull_request:
-    types: [closed]
+    types: [opened]
     branches: master
 
 jobs:
@@ -36,7 +36,7 @@ jobs:
       - name: Update version in pom.xml
         run: |
           mvn versions:set -DnewVersion="${{ steps.bump.outputs.new_version }}" -DgenerateBackupPoms=false
-      - name: Commit version bump
+      - name: Commit version bump to PR
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
