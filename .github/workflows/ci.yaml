@@ -78,7 +78,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v7.3.0
         with:
-          context: ./Dockefile
+          context: ./Dockerfile
           push: true
           tags: |
             ${{ vars.DOCKERHUB_USERNAME }}/java_app:${{ needs.Change_Version.outputs.new_version }}
