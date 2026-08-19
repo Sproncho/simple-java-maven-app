@@ -1,8 +1,13 @@
 name: CI
 run-name: running job for ${{vars.VERSION}}
-on: [push]
+on:
+  pull_request:
+    types: [closed]
+    branches: master
+
 jobs:
-  Build_And_Push_Docker:
+  Change_Version:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
