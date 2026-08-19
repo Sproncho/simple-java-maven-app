@@ -7,7 +7,7 @@ on:
 
 jobs:
   Docker_build_test:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -19,7 +19,7 @@ jobs:
       - name: run and test java_app
         run: docker run --rm java_app | grep -q "Hello World!" && echo "Success" || exit 1
   Change_Version:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     needs: Docker_build_test
     permissions:
       contents: write
@@ -61,7 +61,7 @@ jobs:
           git diff --staged --quiet || git commit -m "Bump version to ${{ steps.bump.outputs.new_version }}"
           git push
   Upload_to_ecs:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     needs: Change_Version
     env:
       NEW_VERSION: "${{ needs.Change_Version.outputs.new_version }}"
