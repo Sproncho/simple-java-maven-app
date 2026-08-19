@@ -86,3 +86,4 @@ jobs:
           region: us-east-1
           local-image: java_app:latest
           image: java_app:${{ env.NEW_VERSION }}, java_app:latest
+#
