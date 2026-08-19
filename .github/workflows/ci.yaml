@@ -1,0 +1,27 @@
+name: CI
+run-name: running job for ${{vars.VERSION}}
+on: [push]
+jobs:
+  Build_And_Push_Docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repo code
+        uses: actions/checkout@v6
+      - name: increase patch VERSION
+        id: bump
+        run: |
+          CURRENT_VERSION="${{vars.VERSION}}"
+          IFS=`.` read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          echo "new_fersion=$NEW_VERSION" >> $GITHUB_OUTPUT
+      - name: update gitlab variable
+        run: |
+          gh variable set VERSION --body "${{ steps.bump.outputs.new_version }}"
+        env:
+          GH_TOKEN: ${{  secrets.PAT_TOKEN  }}
+      - name: Modify an element in XML file
+        uses: Mudlet/xmlstarlet-action@master
+        id: xml_replace
+        with:
+          args: ed -L --update "/prokect/version" -v "${{ vars.VERSION }}" "pom.xml"
