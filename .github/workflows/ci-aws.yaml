@@ -1,0 +1,79 @@
+name: CI
+run-name: running job for ${{vars.VERSION}}
+on:
+  pull_request:
+    types: [opened]
+    branches: aws
+
+jobs:
+  Docker_build_test:
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: build docker image
+        run: |
+          docker build . -t java_app
+      - name: run and test java_app
+        run: docker run --rm java_app | grep -q "Hello World!" && echo "Success" || exit 1
+  Change_Version:
+    runs-on: [self-hosted, linux]
+    needs: Docker_build_test
+    permissions:
+      contents: write
+    outputs:
+      new_version: ${{steps.bump.outputs.new_version}}
+    steps:
+      - name: checkout repo code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: increase patch VERSION
+        id: bump
+        run: |
+          CURRENT_VERSION="${{vars.VERSION}}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+      - name: update gitlab variable
+        run: |
+          gh variable set VERSION --body "${{ steps.bump.outputs.new_version }}"
+        env:
+          GH_TOKEN: ${{  secrets.PAT_TOKEN  }}
+      - name: Update version in pom.xml
+        run: |
+          mvn versions:set -DnewVersion="${{ steps.bump.outputs.new_version }}" -DgenerateBackupPoms=false
+      - name: Commit version bump to PR
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pom.xml
+          git diff --staged --quiet || git commit -m "Bump version to ${{ steps.bump.outputs.new_version }}"
+          git push
+  Upload_to_ecs:
+    runs-on: [self-hosted, linux]
+    needs: Change_Version
+    env:
+      NEW_VERSION: "${{ needs.Change_Version.outputs.new_version }}"
+    steps:
+      - name: checkout repo code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+      - name: build docker image
+        run: |
+          docker build . -t java_app:latest
+      - name: tag and push image
+        run: |
+          docker tag java_app:latest java_app:$NEW_VERSION
+      - name: Push to Amazon ECR
+        uses: jwalton/gh-ecr-push@v2.1.0
+        with:
+          access-key-id: ${{ vars.AWS_ACESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_ACCESS_KEY }}
+          region: us-east-1
+          local-image: java_app:latest
+          image: java_app:${{ env.NEW_VERSION }}, java_app:latest
+#
